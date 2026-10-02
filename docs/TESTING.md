@@ -24,12 +24,12 @@ come from strict tsc rather than an LSP server.
 
 ## Offline result
 
-**113 tests passed**, no skips:
+**114 tests passed**, no skips:
 
 - 36 core/config/state/retry/checkpoint/replay tests.
 - 9 hardening tests, including **1,000 transaction generations** with injected
   interruptions/stale results; separate 100-generation replay/restart simulation.
-- 17 actual Pi SDK scenarios against a localhost SSE provider: manual, automatic,
+- 18 actual Pi SDK scenarios against a localhost SSE provider: manual, automatic,
   late-head mutation after our hook, overflow recovery, soft-zone failure, hard-zone
   blocking, mixed normal/custom tools, compiled extension loading and corrupt-disk
   rejection, payload-policy preservation, input-rewrite rejection, legacy boundary,
@@ -64,6 +64,29 @@ forbids function_call.id starting with ctc_.
 
 Tool-search/additional-tool internals not exposed by the tested Codex tool path are not
 independently synthesized. Grammar/custom tools were also validated live.
+
+## v0.3.1 request ownership and installation
+
+The new SDK scenario exercises independent Luna and Astra requests before native
+compaction, after three generations, and after disk reopening. Requests contain no
+main checkpoint/continuation state; the main checkpoint remains intact. Genuine
+main identity mismatches still fail before transport.
+
+CI also installs the tarball, reruns eight packaged SDK scenarios (including the
+independent-request regression), and loads the published upstream
+pi-context-prune 2.1.0 alongside it for a real-SDK coupled test. No local fork is
+required for this compatibility test. A separate local pruner patch has the
+boundary/retry long-session coverage documented in [ownership notes](PRUNER_OWNERSHIP.md).
+
+The plain-Node RPC source-entry smoke proves Git/source loading without package-local
+Pi peers; a TSX-only loader test would not catch the original host-resolution issue.
+A terminal startup check confirms a root entry displays a package name rather than
+a standalone dist directory.
+
+A fresh existing-OAuth v0.3.1 run completed three native generations, two real tool
+executions, reconnect and session reopen. All 11 requests used WebSocket, with eight
+connection reuses, five deltas and no SSE fallback or WebSocket failure.
+See [sanitized v0.3.1 evidence](validation-v0.3.1.json). Live Luna pruning is not claimed.
 
 ## Live evidence
 

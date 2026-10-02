@@ -1,12 +1,14 @@
 # Changelog
 
-## 0.3.1 — Local checkpoint-ownership patch (not published)
+## 0.3.1 — Checkpoint ownership and GitHub release
 
 - Isolate independent provider requests from the main session's checkpoint, policy,
   system transcript and pressure gates; retain strict main replay identity checks.
 - Add hashed request-scope diagnostics and real SDK mixed-model/pruner regressions.
 - Fix source-only CLI host resolution through Pi's public package-root API.
 - Document the companion pruner boundary/retry patch and bounded long-session evidence.
+- Follow Pi’s external host-peer convention and verify interoperability with upstream pi-context-prune 2.1.0 in CI.
+- Provide pinned Git installation and checksummed GitHub release artifacts. npm publication remains deferred.
 
 ## 0.3.0 — GitHub-first release
 
