@@ -24,7 +24,7 @@ come from strict tsc rather than an LSP server.
 
 ## Offline result
 
-**114 tests passed**, no skips:
+**135 tests passed**, no skips:
 
 - 36 core/config/state/retry/checkpoint/replay tests.
 - 9 hardening tests, including **1,000 transaction generations** with injected
@@ -64,6 +64,17 @@ forbids function_call.id starting with ctc_.
 
 Tool-search/additional-tool internals not exposed by the tested Codex tool path are not
 independently synthesized. Grammar/custom tools were also validated live.
+
+## v0.3.2 provider/session isolation
+
+Twenty additional actual-SDK scenarios cover other providers/APIs, ordinary Pi
+compaction, active versus archived native boundaries, same-process new sessions,
+tree/model changes and in-flight cancellation. CI reruns them against the installed
+tarball. Status presentation distinguishes inactive versus blocked contexts.
+See [isolation invariants and race evidence](PROVIDER_ISOLATION.md).
+A fresh three-generation Codex run also verified replay, two tools, reconnect and
+session reopen: 11 WebSocket requests, eight reuses, five deltas, no fallback/failure.
+[Sanitized v0.3.2 evidence](validation-v0.3.2.json) separates live from fixture coverage.
 
 ## v0.3.1 request ownership and installation
 

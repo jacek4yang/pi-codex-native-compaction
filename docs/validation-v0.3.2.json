@@ -1,0 +1,31 @@
+{
+  "version": "0.3.2",
+  "pi": "1.0.0",
+  "scope": "Isolated AgentSession using existing Codex OAuth; no user session modified",
+  "provider": "openai-codex",
+  "model": "gpt-6-astra",
+  "transport": "auto",
+  "nativeGenerations": 3,
+  "replayAfterEachGeneration": true,
+  "toolExecutions": 2,
+  "reconnect": true,
+  "sessionReopen": true,
+  "transportProof": {
+    "requests": 11,
+    "connectionsCreated": 3,
+    "connectionsReused": 8,
+    "deltaRequests": 5,
+    "websocketFailures": 0,
+    "sseFallbacks": 0
+  },
+  "deterministicCoverage": {
+    "fullSuite": 135,
+    "providerIsolationScenarios": 20,
+    "installedPackageIsolationScenarios": 20,
+    "installedMixedModelScenarios": 2,
+    "officialPrunerVersion": "2.1.0",
+    "plainCliExtensionErrors": 0
+  },
+  "privacy": "Private identifiers, paths, transcripts, credentials and encrypted checkpoint contents omitted.",
+  "limitations": "Other-provider rejection/passthrough and mixed-model pruning use real Pi SDK with deterministic provider fixtures. Live run validates bounded Codex compaction, not every external provider or an unlimited soak."
+}

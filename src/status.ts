@@ -3,6 +3,7 @@ import type { Migration } from "./provenance.js";
 import { VERSION } from "./version.js";
 export interface Status {
   enabled: boolean;
+  scope?: "active" | "inactive" | "blocked";
   disabled?: string;
   mode: string;
   model: Identity | null;
@@ -51,11 +52,15 @@ export function formatStatus(
     "Mode: " +
       clean(s.mode) +
       " · " +
-      (s.disabled
-        ? "disabled"
-        : s.enabled
-          ? "enabled"
-          : "new compactions paused"),
+      (s.scope === "inactive"
+        ? "inactive (Pi handles this session)"
+        : s.scope === "blocked"
+          ? "blocked (incompatible native context)"
+          : s.disabled
+            ? "disabled"
+            : s.enabled
+              ? "enabled"
+              : "new compactions paused"),
     "Model: " +
       (s.model
         ? clean(s.model.provider) + " / " + clean(s.model.model)

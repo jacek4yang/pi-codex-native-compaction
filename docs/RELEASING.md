@@ -15,7 +15,7 @@
 ```sh
 pi install git:github.com/jacek4yang/pi-codex-native-compaction
 # Reproducible release installation:
-pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.1
+pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.2
 ```
 
 Root index.ts loads source through Pi; Git installation needs no devDependencies or build.

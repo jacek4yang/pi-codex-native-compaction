@@ -46,8 +46,8 @@ export function identity(model: Model<Api>): Identity {
     baseUrl: url.href.replace(/\/$/, ""),
   };
 }
-export function supported(i: Identity) {
-  return i.provider === "openai-codex" && i.api === "openai-codex-responses";
+export function supported(i: Pick<Identity, "provider" | "api"> | undefined) {
+  return i?.provider === "openai-codex" && i.api === "openai-codex-responses";
 }
 export function seal(value: Omit<Checkpoint, "integrity">): Checkpoint {
   return { ...value, integrity: hash(value) };

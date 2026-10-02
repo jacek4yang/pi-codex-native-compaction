@@ -39,6 +39,7 @@ jobs:
           artifact="$(node -p '"pi-codex-native-compaction-" + require("./package.json").version + ".tgz"')"
           npm install --prefix "$target" --ignore-scripts --no-audit --no-fund "$PWD/$artifact"
           PI_NATIVE_TEST_EXTENSION="$target/node_modules/pi-codex-native-compaction/index.ts" npx tsx --test --test-name-pattern='packaged|migrate-|independent' test/sdk.test.ts
+          PI_NATIVE_TEST_EXTENSION="$target/node_modules/pi-codex-native-compaction/index.ts" npx tsx --test test/provider-isolation.test.ts
           npm run smoke:install -- "$target/node_modules/pi-codex-native-compaction"
           companion="$(mktemp -d)"
           npm install --prefix "$companion" --omit=dev --legacy-peer-deps --ignore-scripts --no-audit --no-fund pi-context-prune@2.1.0

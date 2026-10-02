@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2 — Provider and session isolation
+
+- Let unrelated providers/APIs use Pi's own inference and manual/automatic compaction.
+- Identify only the active owned native boundary, not arbitrary or historical strategy metadata.
+- Abort incompatible native-context continuation before transport without weakening replay validation.
+- Reset runtime state on model/tree/session changes; prevent stale async compaction failures from poisoning the new scheduler.
+- Keep native replay when generation is paused, but allow normal Pi compaction when no owned checkpoint exists.
+- Add explicit inactive/blocked status and twenty real-SDK isolation scenarios, repeated against installed packages.
+
 ## 0.3.1 — Checkpoint ownership and GitHub release
 
 - Isolate independent provider requests from the main session's checkpoint, policy,
