@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible compaction, replay, installation or UI problem.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Never paste OAuth tokens, auth.json, full session JSONL, encrypted_content or raw provider payloads. Security issues: see SECURITY.md."
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Pi coding-agent, pi-ai, this extension, Node and operating system
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Configured transport
+      options: [auto, websocket, websocket-cached, sse, unknown]
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction and expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Redacted status / inspect output
+      description: Review output before posting; no user messages or secret state.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, conversation content and encrypted checkpoint data.
+          required: true

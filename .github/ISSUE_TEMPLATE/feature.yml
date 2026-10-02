@@ -1,0 +1,16 @@
+name: Focused feature request
+description: Suggest an improvement within Pi Codex native compaction.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and proposed behavior
+      description: Explain the continuity or usability problem; keep provider scope narrow.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Compatibility and safety considerations

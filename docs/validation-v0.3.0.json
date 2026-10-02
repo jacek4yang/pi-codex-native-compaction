@@ -1,0 +1,41 @@
+{
+  "extensionVersion": "0.3.0",
+  "piVersion": "1.0.0",
+  "piAiVersion": "1.0.0",
+  "model": "gpt-6-astra",
+  "mode": "auto",
+  "nativeGenerations": [
+    {
+      "generation": 1,
+      "encryptedBytes": 1868,
+      "replay": true
+    },
+    {
+      "generation": 2,
+      "encryptedBytes": 1892,
+      "replay": true
+    },
+    {
+      "generation": 3,
+      "encryptedBytes": 1892,
+      "replay": true
+    }
+  ],
+  "toolExecutions": 2,
+  "reconnect": true,
+  "sessionReopen": true,
+  "transport": {
+    "requests": 11,
+    "connectionsCreated": 3,
+    "connectionsReused": 8,
+    "cachedContextRequests": 11,
+    "storeTrueRequests": 0,
+    "fullContextRequests": 6,
+    "deltaRequests": 5,
+    "lastInputItems": 9,
+    "websocketFailures": 0,
+    "sseFallbacks": 0
+  },
+  "blockedSseRequests": 0,
+  "scope": "Existing OAuth in an isolated AgentSession after native ESM host-export adapter change; no user session modified."
+}

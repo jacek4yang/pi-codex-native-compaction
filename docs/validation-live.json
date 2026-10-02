@@ -1,0 +1,76 @@
+{
+  "piVersion": "1.0.0",
+  "piAiVersion": "1.0.0",
+  "model": "gpt-6-astra",
+  "provider": "openai-codex",
+  "protocol": "codex-remote-compaction-v2",
+  "codexReference": "ca466061d64f0b44f416135c7fd06aa7af850bbc",
+  "transport": "sse",
+  "soak": {
+    "generations": [
+      {
+        "generation": 1,
+        "responseId": "[redacted]",
+        "encryptedBytes": 1996,
+        "replay": true
+      },
+      {
+        "generation": 2,
+        "responseId": "[redacted]",
+        "encryptedBytes": 1828,
+        "replay": true
+      },
+      {
+        "generation": 3,
+        "responseId": "[redacted]",
+        "encryptedBytes": 1996,
+        "replay": true
+      },
+      {
+        "generation": 4,
+        "responseId": "[redacted]",
+        "encryptedBytes": 1996,
+        "replay": true
+      },
+      {
+        "generation": 5,
+        "responseId": "[redacted]",
+        "encryptedBytes": 2060,
+        "replay": true
+      },
+      {
+        "generation": 6,
+        "responseId": "[redacted]",
+        "encryptedBytes": 2104,
+        "replay": true
+      }
+    ],
+    "restart": true,
+    "toolExecutions": 2
+  },
+  "finalSmoke": {
+    "generations": [
+      {
+        "generation": 1,
+        "responseId": "[redacted]",
+        "encryptedBytes": 2212,
+        "replay": true
+      },
+      {
+        "generation": 2,
+        "responseId": "[redacted]",
+        "encryptedBytes": 2212,
+        "replay": true
+      },
+      {
+        "generation": 3,
+        "responseId": "[redacted]",
+        "encryptedBytes": 2232,
+        "replay": true
+      }
+    ],
+    "restart": true,
+    "toolExecutions": 2
+  },
+  "identifierPolicy": "Runtime IDs redacted for public publication; counts and outcomes unchanged."
+}

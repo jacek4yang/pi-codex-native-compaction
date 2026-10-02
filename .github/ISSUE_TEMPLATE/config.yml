@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/jacek4yang/pi-codex-native-compaction/security/advisories/new
+    about: Report credential exposure or session-integrity vulnerabilities privately.

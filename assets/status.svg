@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="530" viewBox="0 0 960 530" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Native Compaction status preview</title>
+  <desc id="desc">Illustrative compact status: native-only, gpt-6-astra, auto transport, healthy native V2 generation three.</desc>
+  <rect width="960" height="530" rx="20" fill="#111827"/>
+  <rect x="0" y="0" width="960" height="48" rx="20" fill="#1f2937"/>
+  <circle cx="28" cy="25" r="6" fill="#fb7185"/><circle cx="50" cy="25" r="6" fill="#fbbf24"/><circle cx="72" cy="25" r="6" fill="#34d399"/>
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="21" fill="#d1d5db">
+    <text x="32" y="92" fill="#67e8f9">/native-compact status</text>
+    <text x="32" y="140" fill="#f9fafb" font-weight="bold">Codex Native Compaction v0.3.0</text>
+    <text x="32" y="174">Mode: native-only · enabled</text>
+    <text x="32" y="208">Model: openai-codex / gpt-6-astra</text>
+    <text x="32" y="242">Transport: auto (Pi managed)</text>
+    <text x="32" y="276">Context: 8,200 / 1,048,576 tokens (0.8%)</text>
+    <text x="32" y="310">Thresholds: soft 75% · hard 88%</text>
+    <text x="32" y="344">State: idle</text>
+    <text x="32" y="378">Continuity: native V2 · generation 3</text>
+    <text x="32" y="412" fill="#6ee7b7">Replay: healthy</text>
+    <text x="32" y="446">Circuit: closed</text>
+    <text x="32" y="480">Last: committed · retries 0</text>
+  </g>
+</svg>

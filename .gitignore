@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tgz
+*.tgz.sha256
+pack-result.json
+artifacts/
+.env
+.native-worklog.md
