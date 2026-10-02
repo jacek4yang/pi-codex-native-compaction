@@ -19,7 +19,9 @@ Pi 1.0's Jiti alias maps the pi-ai package root to compat.js. In a peerless Git 
 appending public /api subpaths to that alias fails. A small adapter resolves those
 **public exports** relative to the host's public coding-agent entry, using
 import-meta-resolve for ESM export conditions and native ESM import to share the
-host module instance and WebSocket cache/lifecycle. No node_modules layout or private source path is assumed.
+host module instance and WebSocket cache/lifecycle. Version 0.3.1 obtains the host root
+through public getPackageDir: import.meta.resolve inside Jiti otherwise resolves from
+the extension instead of the host alias. No node_modules layout or private source path is assumed.
 
 Tests cover source-only loading with just the resolver dependency and no dist/Pi peers,
 plus actual CLI status/inspect/JSON behavior and packaged native SDK flows.
@@ -64,6 +66,11 @@ must occur once. Unexpected prefix items, orphan markers and duplicate native it
 are rejected. Marker rendering is obtained through Pi's public serializer.
 
 ## Payload policy and other extensions
+
+Only main-session-owned requests and explicit native transactions inherit checkpoint
+state. Independent summarizers (including a different Codex model) bypass that state.
+See [checkpoint/pruner ownership](PRUNER_OWNERSHIP.md) for routing, companion fixes,
+regression evidence and resume limitations.
 
 Normal Pi payload hooks run before final native replay validation. Non-input changes
 (e.g. service-tier or tool policy) are captured as an in-memory delta for the next

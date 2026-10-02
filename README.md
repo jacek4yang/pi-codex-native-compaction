@@ -17,7 +17,8 @@ the encrypted item, and the new live tail. **There is no text-summary fallback.*
 ## Compatibility and evidence
 
 - Tested: `@earendil-works/pi-coding-agent` **1.0.0**, `@earendil-works/pi-ai` **1.0.0**.
-  These were also the latest releases when checked. Peers/runtime restricted to **1.0.x**.
+  Runtime compatibility is deliberately restricted to **1.0.x**. Host dependencies are
+  external peers (`*`), following Pi package guidance; the runtime guard is not relaxed.
 - Provider/API: `openai-codex` / `openai-codex-responses`; primary model `gpt-6-astra`.
 - Existing Pi ChatGPT/Codex OAuth login; no API key, second login, or billing fallback.
 - Codex reference: `ca466061d64f0b44f416135c7fd06aa7af850bbc`.
@@ -32,6 +33,11 @@ the encrypted item, and the new live tail. **There is no text-summary fallback.*
 Behaviorally aligned with Codex Remote Compaction V2, **not byte-for-byte parity**.
 Read the [intentional differences](docs/PROTOCOL.md) before deployment.
 
+Independent summarizers such as Luna do not inherit the main Astra checkpoint.
+See [request ownership and pruner compatibility](docs/PRUNER_OWNERSHIP.md).
+No companion plugin is bundled or required. The optional boundary/retry enhancements
+in those notes belong to a separately tested local pruner patch.
+
 ## Install from GitHub
 
 Requires Node **24+**, Pi **1.0.x**, and your existing Codex login.
@@ -40,10 +46,10 @@ Requires Node **24+**, Pi **1.0.x**, and your existing Codex login.
 pi install git:github.com/jacek4yang/pi-codex-native-compaction
 ```
 
-For a reproducible release:
+For a reproducible release (recommended; the unpinned form tracks the default branch):
 
 ```sh
-pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.0
+pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.1
 ```
 
 Reload/restart Pi after installation. The root TypeScript entry works without a local

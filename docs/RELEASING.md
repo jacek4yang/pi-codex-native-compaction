@@ -15,7 +15,7 @@
 ```sh
 pi install git:github.com/jacek4yang/pi-codex-native-compaction
 # Reproducible release installation:
-pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.0
+pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.1
 ```
 
 Root index.ts loads source through Pi; Git installation needs no devDependencies or build.
@@ -31,6 +31,23 @@ available in npm tarballs for programmatic consumers.
 - Verify the resulting package version, integrity, repository/author/license/files and
   clean installation before calling npm publication complete.
 - Do not introduce a stored publish token or enable publication on arbitrary PRs.
+
+Prefer GitHub Actions OIDC trusted publishing on a supported GitHub-hosted runner.
+Use an exact repository/workflow mapping and a protected publishing environment.
+Keep package ownership/account 2FA and main-branch protections enabled. Recheck npm's
+current first-publication bootstrap requirements: creating a GitHub release does
+not reserve an npm name or automatically configure a trusted publisher.
+
+For the later publication task, provide only the intended npm username/package scope
+and confirm package ownership. Do not paste passwords, recovery codes or npm tokens
+into chat. If an initial interactive publish is required, authenticate locally.
+
+After publication the intended installation will be:
+
+```sh
+# Future only: this npm package has NOT been published.
+pi install npm:pi-codex-native-compaction
+```
 
 The manifest is prepared with repository, bugs, homepage, author, types, keywords,
 public access and provenance metadata. These fields do not themselves publish anything.

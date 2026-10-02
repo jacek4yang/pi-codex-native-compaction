@@ -1,0 +1,23 @@
+{
+  "version": "0.3.1",
+  "pi": "1.0.0",
+  "scope": "Isolated AgentSession, existing Codex OAuth; no user session modified",
+  "model": "gpt-6-astra",
+  "provider": "openai-codex",
+  "transport": "auto",
+  "nativeGenerations": 3,
+  "replayAfterEachGeneration": true,
+  "toolExecutions": 2,
+  "reconnect": true,
+  "sessionReopen": true,
+  "transportProof": {
+    "requests": 11,
+    "connectionsCreated": 3,
+    "connectionsReused": 8,
+    "deltaRequests": 5,
+    "websocketFailures": 0,
+    "sseFallbacks": 0
+  },
+  "privacy": "Response/session identifiers, private paths, credentials, transcripts and encrypted contents omitted.",
+  "limitations": "Bounded live compaction validation; mixed-model pruning is covered by deterministic real-SDK integration, not a live Luna soak."
+}

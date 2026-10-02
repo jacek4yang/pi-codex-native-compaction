@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
@@ -17,11 +23,17 @@ import {
 import { createExtension } from "../src/index.js";
 import { MIGRATE_REQUEST } from "../src/migration.js";
 import { assistant } from "./fixtures.js";
-import { Type, InMemoryCredentialStore } from "@earendil-works/pi-ai";
+import {
+  Type,
+  InMemoryCredentialStore,
+  normalizeContext,
+} from "@earendil-works/pi-ai";
 import { SENTINEL, validateCheckpoint } from "../src/checkpoint.js";
 import { events, jwt, model, compactItem } from "./fixtures.js";
 for (const scenario of [
   "manual",
+  "independent",
+  ...(process.env.PI_NATIVE_PRUNER_EXTENSION ? (["coupled"] as const) : []),
   "automatic",
   "late-head",
   "overflow",
@@ -42,10 +54,7 @@ for (const scenario of [
   test("real Pi 1.0 SDK: " + scenario, async () => {
     const automatic = scenario.startsWith("automatic");
     const packaged =
-      scenario === "packaged" ||
-      Boolean(
-        process.env.PI_NATIVE_TEST_EXTENSION && scenario.startsWith("migrate-"),
-      );
+      scenario === "packaged" || Boolean(process.env.PI_NATIVE_TEST_EXTENSION);
     let mutateLate = false;
     let overflowOnce = scenario === "overflow";
     let toolsOnce = scenario === "automatic-tools";
@@ -54,9 +63,27 @@ for (const scenario of [
     let migrationCommitted: (() => void) | undefined;
     const recovery: { reason: string; willRetry: boolean }[] = [];
     const dir = mkdtempSync(join(tmpdir(), "native-sdk-"));
+    const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+    if (scenario === "coupled") {
+      process.env.PI_CODING_AGENT_DIR = dir;
+      mkdirSync(join(dir, "context-prune"));
+      writeFileSync(
+        join(dir, "context-prune", "settings.json"),
+        JSON.stringify({
+          enabled: true,
+          pruneOn: "agentic-auto",
+          summarizerModel: "openai-codex/gpt-6-luna",
+        }),
+      );
+    }
     const payloads: Record<string, unknown>[] = [];
     let fail = false;
     const server = createServer(async (req, res) => {
+      if (req.method !== "POST") {
+        res.writeHead(426);
+        res.end("SSE fixture only");
+        return;
+      }
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(Buffer.from(chunk));
       let bytes = Buffer.concat(chunks);
@@ -220,12 +247,17 @@ for (const scenario of [
           noPromptTemplates: true,
           noThemes: true,
           noContextFiles: true,
-          additionalExtensionPaths: packaged
-            ? [
-                process.env.PI_NATIVE_TEST_EXTENSION ??
-                  join(process.cwd(), "dist/index.js"),
-              ]
-            : [],
+          additionalExtensionPaths: [
+            ...(packaged
+              ? [
+                  process.env.PI_NATIVE_TEST_EXTENSION ??
+                    join(process.cwd(), "dist/index.js"),
+                ]
+              : []),
+            ...(scenario === "coupled"
+              ? [process.env.PI_NATIVE_PRUNER_EXTENSION!]
+              : []),
+          ],
           extensionFactories: [
             ...(packaged
               ? []
@@ -328,6 +360,108 @@ for (const scenario of [
       assert(last.role === "assistant");
       assert.equal(last.stopReason, "stop", last.errorMessage);
       assert(payloads.length > 0);
+      const auxiliary = async (owner = session) => {
+        const before = JSON.stringify(owner.sessionManager.getBranch());
+        for (const [id, sessionId] of [
+          ["gpt-6-luna", undefined],
+          [local.id, undefined],
+          ["gpt-6-luna", "independent-cache-scope"],
+        ] as const) {
+          const count = payloads.length;
+          const provider = runtime.getProvider(local.provider);
+          assert(provider);
+          const response = await provider
+            .stream(
+              { ...local, id },
+              normalizeContext({
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "summarize eligible tool output" },
+                    ],
+                    timestamp: Date.now(),
+                  },
+                ],
+              }),
+              {
+                apiKey: jwt,
+                transport: "sse",
+                sessionId,
+                onPayload: (p) => ({ ...(p as object), auxiliary_probe: true }),
+              },
+            )
+            .result();
+          assert.equal(response.stopReason, "stop", response.errorMessage);
+          assert.equal(payloads.length, count + 1);
+          const request = payloads.at(-1)!;
+          assert.equal(request.auxiliary_probe, true);
+          assert.equal(request.previous_response_id, undefined);
+          assert.equal((request.input as unknown[]).length, 1);
+          assert(!JSON.stringify(request.input).includes("encrypted_content"));
+          assert(!JSON.stringify(request.input).includes(SENTINEL));
+          assert.equal(
+            JSON.stringify(owner.sessionManager.getBranch()),
+            before,
+          );
+        }
+      };
+      if (scenario === "independent") await auxiliary();
+      const pruneActual = async (suffix: string) => {
+        const id = "tool-" + suffix;
+        const sm = session.sessionManager;
+        sm.appendMessage(
+          assistant([
+            { type: "toolCall", id, name: "read", arguments: { path: id } },
+          ]),
+        );
+        sm.appendMessage({
+          role: "toolResult",
+          toolCallId: id,
+          toolName: "read",
+          content: [
+            {
+              type: "text",
+              text: "amber-42 " + "synthetic output ".repeat(200),
+            },
+          ],
+          isError: false,
+          timestamp: Date.now(),
+        });
+        const cp = JSON.stringify(
+          sm.getBranch().filter((e) => e.type === "compaction"),
+        );
+        const count = payloads.length;
+        await session.prompt("/pruner now");
+        assert.equal(payloads.length, count + 1);
+        const request = payloads.at(-1)!;
+        assert.equal(request.model, "gpt-6-luna");
+        assert.equal(request.previous_response_id, undefined);
+        assert(!JSON.stringify(request.input).includes("encrypted_content"));
+        assert(!JSON.stringify(request.input).includes(SENTINEL));
+        assert.equal(
+          JSON.stringify(sm.getBranch().filter((e) => e.type === "compaction")),
+          cp,
+        );
+        const summary = sm
+          .getBranch()
+          .findLast(
+            (e) =>
+              e.type === "custom_message" &&
+              e.customType === "context-prune-summary",
+          );
+        assert(
+          summary,
+          "real pruner must persist a summary, not merely suppress failure",
+        );
+        await session.prompt("/pruner now");
+        assert.equal(
+          payloads.length,
+          count + 1,
+          "frontier prevents duplicate requests",
+        );
+      };
+      if (scenario === "coupled") await pruneActual("before");
       let migrationSource: string | undefined;
       if (scenario.startsWith("migrate-")) {
         const userEntry = session.sessionManager
@@ -560,7 +694,11 @@ for (const scenario of [
           assert.equal(verified.migration?.sourceEntryId, migrationSource);
           assert.equal(verified.migration?.earlierLossNotRecovered, true);
         }
+        if (scenario === "independent") await auxiliary();
+        if (scenario === "coupled") await pruneActual(String(step));
         await session.prompt("What is the code?");
+        if (scenario === "independent")
+          assert.equal(payloads.at(-1)?.auxiliary_probe, undefined);
         const input = payloads.at(-1)?.input as Record<string, unknown>[];
         assert.equal(input.filter((i) => i.type === "compaction").length, 1);
         assert(!JSON.stringify(input).includes(SENTINEL));
@@ -571,6 +709,45 @@ for (const scenario of [
       assert(disk.includes('"strategy":"codex-remote-compaction-v2"'));
       session.dispose();
       session = await make(SessionManager.open(file, dir));
+      if (scenario === "independent") {
+        await auxiliary(session);
+        const provider = runtime.getProvider(local.provider)!;
+        for (const change of [
+          { id: "gpt-6-luna" },
+          { provider: "other-provider" },
+          { baseUrl: local.baseUrl + "/incompatible" },
+        ]) {
+          const count = payloads.length;
+          const before: string = readFileSync(file, "utf8");
+          const response = await provider
+            .stream(
+              { ...local, ...change } as typeof local,
+              normalizeContext({
+                messages: [
+                  {
+                    role: "user",
+                    content: "wrong owner",
+                    timestamp: Date.now(),
+                  },
+                ],
+              }),
+              {
+                apiKey: jwt,
+                transport: "sse",
+                sessionId: session.sessionManager.getSessionId(),
+              },
+            )
+            .result();
+          assert.equal(response.stopReason, "error", JSON.stringify(change));
+          assert.match(
+            response.errorMessage ?? "",
+            /Checkpoint provider\/API\/model\/endpoint mismatch/,
+          );
+          assert.equal(payloads.length, count);
+          assert.equal(readFileSync(file, "utf8"), before);
+        }
+      }
+      if (scenario === "coupled") await pruneActual("resumed");
       await session.prompt("Repeat the code once.");
       assert.equal(
         (payloads.at(-1)?.input as Record<string, unknown>[]).filter(
@@ -609,6 +786,11 @@ for (const scenario of [
         session.dispose();
       }
     } finally {
+      if (scenario === "coupled") {
+        if (previousAgentDir === undefined)
+          delete process.env.PI_CODING_AGENT_DIR;
+        else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+      }
       server.closeAllConnections();
       await new Promise<void>((r) => server.close(() => r()));
       rmSync(dir, { recursive: true, force: true });
