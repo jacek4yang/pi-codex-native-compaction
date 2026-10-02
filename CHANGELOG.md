@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 — Local checkpoint-ownership patch (not published)
+
+- Isolate independent provider requests from the main session's checkpoint, policy,
+  system transcript and pressure gates; retain strict main replay identity checks.
+- Add hashed request-scope diagnostics and real SDK mixed-model/pruner regressions.
+- Fix source-only CLI host resolution through Pi's public package-root API.
+- Document the companion pruner boundary/retry patch and bounded long-session evidence.
+
 ## 0.3.0 — GitHub-first release
 
 - Compact human-readable status and expanded inspect output; explicit `--json` for automation.

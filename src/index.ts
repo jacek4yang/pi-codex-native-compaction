@@ -139,6 +139,31 @@ export function createExtension(settings?: Partial<Config>) {
       streamSimple(model, context, options = {}) {
         const native =
           options.onPayload && nativeCallbacks.has(options.onPayload);
+        const ownerSessionId =
+          native || options.sessionId
+            ? ctx?.sessionManager.getSessionId()
+            : undefined;
+        // Provider registrations also serve independent extension requests. Pi's
+        // agent loop owns the session routing ID; pruners/summaries use no ID or
+        // their own. Only the owning conversation may inherit its checkpoint,
+        // policy, pressure gate and system/tool transcript (even for SAME model).
+        if (
+          !native &&
+          (!ownerSessionId || options.sessionId !== ownerSessionId)
+        ) {
+          log.emit("request_scope", {
+            scope: "independent",
+            provider: model.provider,
+            api: model.api,
+            model: model.id,
+            checkpointAttached: false,
+          });
+          return codexStream(
+            model as Model<"openai-codex-responses">,
+            context,
+            options,
+          );
+        }
         if (!native) {
           lastOptions = {
             reasoning: options.reasoning,
@@ -158,6 +183,11 @@ export function createExtension(settings?: Partial<Config>) {
               ctx,
               "Pi session_start has not initialized native compaction",
             );
+            if (ctx.sessionManager.getSessionId() !== ownerSessionId)
+              throw new NativeError(
+                "stale",
+                "Primary request session changed before serialization",
+              );
             const migration = options.onPayload
               ? nativeMigrations.get(options.onPayload)
               : undefined;
@@ -176,6 +206,13 @@ export function createExtension(settings?: Partial<Config>) {
                 identity(m),
                 ctx.sessionManager.getSessionId(),
               );
+            log.emit("checkpoint_route", {
+              scope: native ? "native" : "primary",
+              checkpointAttached: !!cp,
+              generation: cp?.generation,
+              checkpointIdentity: cp ? hash(cp.identity) : undefined,
+              requestIdentity: hash(identity(m)),
+            });
             const rewrite = (p: unknown) =>
               replay(p, migration?.window ?? cp, marker(m));
             if (!native && config.enabled) {

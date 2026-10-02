@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { join } from "node:path";
 import {
   createAgentSession,
@@ -25,6 +27,14 @@ test("source-only root entry loads without a build or package-local Pi peers", a
       { recursive: true },
     );
     assert(!existsSync(join(pkg, "node_modules/@earendil-works")));
+    // SDK tests run under TSX; its fallback resolver can hide a broken host alias.
+    // This launches a plain Node Pi CLI (the smoke harness only orchestrates RPC).
+    const smoke = await promisify(execFile)(
+      join(process.cwd(), "node_modules/.bin/tsx"),
+      ["scripts/install-smoke.ts", pkg],
+      { cwd: process.cwd(), timeout: 40_000 },
+    );
+    assert.equal(JSON.parse(smoke.stdout).extensionErrors, 0);
     const settings = SettingsManager.inMemory();
     const resources = new DefaultResourceLoader({
       cwd: root,

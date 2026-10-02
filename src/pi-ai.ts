@@ -1,4 +1,6 @@
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { getPackageDir } from "@earendil-works/pi-coding-agent";
 import { resolve } from "import-meta-resolve";
 
 /**
@@ -7,7 +9,12 @@ import { resolve } from "import-meta-resolve";
  * from the host coding-agent entry instead. No node_modules layout or private file path
  * is assumed. Native ESM import preserves the host module cache and socket lifecycle.
  */
-const hostEntry = import.meta.resolve("@earendil-works/pi-coding-agent");
+// import.meta.resolve in Jiti resolves from the extension, not its host alias.
+// The public host asset root also works for peerless, non-TSX CLI installations.
+const hostEntry = resolve(
+  "@earendil-works/pi-coding-agent",
+  pathToFileURL(join(getPackageDir(), "package.json")).href,
+);
 const codexExport = "@earendil-works/pi-ai/api/openai-codex-responses";
 const sharedExport = "@earendil-works/pi-ai/api/openai-responses-shared";
 const codex = (await import(
