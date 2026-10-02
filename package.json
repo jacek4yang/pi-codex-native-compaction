@@ -1,0 +1,92 @@
+{
+  "name": "pi-codex-native-compaction",
+  "version": "0.3.0",
+  "description": "Transactional Codex Remote Compaction V2 for Pi: native checkpoints, safe replay, and explicit legacy migration.",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "index.ts",
+    "src",
+    "dist",
+    "assets",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "docs"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/jacek4yang/pi-codex-native-compaction/main/assets/status.svg"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "tsx --test test/*.test.ts",
+    "pretest": "npm run build",
+    "prepack": "npm run build",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "live": "tsx scripts/live.ts",
+    "smoke:install": "tsx scripts/install-smoke.ts",
+    "format": "prettier --write index.ts src test scripts docs assets .github README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md *.json eslint.config.js",
+    "format:check": "prettier --check index.ts src test scripts docs assets .github README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md *.json eslint.config.js"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=1.0.0 <1.1.0",
+    "@earendil-works/pi-coding-agent": ">=1.0.0 <1.1.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "author": {
+    "name": "Jacek Yang",
+    "url": "https://github.com/jacek4yang"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacek4yang/pi-codex-native-compaction.git"
+  },
+  "homepage": "https://github.com/jacek4yang/pi-codex-native-compaction#readme",
+  "bugs": {
+    "url": "https://github.com/jacek4yang/pi-codex-native-compaction/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-coding-agent",
+    "openai-codex",
+    "codex",
+    "context-compaction",
+    "remote-compaction",
+    "typescript"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "import-meta-resolve": "^4.2.0"
+  }
+}
