@@ -25,6 +25,11 @@ import {
   validateCheckpoint,
 } from "./checkpoint.js";
 import { check, classify, NativeError } from "./errors.js";
+import {
+  activeCompaction,
+  ownsCompaction,
+  INCOMPATIBLE_CONTEXT,
+} from "./scope.js";
 import { marker, replay, inputOf } from "./replay.js";
 import { Scheduler } from "./scheduler.js";
 import { Diagnostics } from "./diagnostics.js";
@@ -45,8 +50,8 @@ export function createExtension(settings?: Partial<Config>) {
       settings ?? JSON.parse(process.env.PI_CODEX_NATIVE_COMPACTION ?? "{}"),
     );
     const log = new Diagnostics(config);
-    const tx = new Transaction(config, log);
-    const scheduler = new Scheduler(config);
+    let tx = new Transaction(config, log);
+    let scheduler = new Scheduler(config);
     let ctx: ExtensionContext | undefined;
     let disabled: string | undefined;
     let lastOptions: SimpleStreamOptions = {};
@@ -56,10 +61,12 @@ export function createExtension(settings?: Partial<Config>) {
     let inputTransformed = false;
     const nativeCallbacks = new WeakSet<object>();
     const nativeMigrations = new WeakMap<object, MigrationPlan>();
+    const ownsContext = (context: ExtensionContext) =>
+      ownsCompaction(activeCompaction(context.sessionManager.getBranch()));
+    const participates = (context: ExtensionContext) =>
+      supported(context.model) && (config.enabled || ownsContext(context));
     function legacy(context: ExtensionContext) {
-      const entry = context.sessionManager
-        .getBranch()
-        .findLast((e) => e.type === "compaction");
+      const entry = activeCompaction(context.sessionManager.getBranch());
       if (!entry) return;
       return legacyBoundary(
         entry,
@@ -70,9 +77,7 @@ export function createExtension(settings?: Partial<Config>) {
       context: ExtensionContext,
       allowLegacyNative = false,
     ): Checkpoint | undefined {
-      const entry = context.sessionManager
-        .getBranch()
-        .findLast((e) => e.type === "compaction");
+      const entry = activeCompaction(context.sessionManager.getBranch());
       if (!entry) return;
       const old = legacy(context);
       if (old) {
@@ -149,7 +154,9 @@ export function createExtension(settings?: Partial<Config>) {
         // policy, pressure gate and system/tool transcript (even for SAME model).
         if (
           !native &&
-          (!ownerSessionId || options.sessionId !== ownerSessionId)
+          (!ownerSessionId ||
+            options.sessionId !== ownerSessionId ||
+            (ctx && !participates(ctx)))
         ) {
           log.emit("request_scope", {
             scope: "independent",
@@ -344,14 +351,11 @@ export function createExtension(settings?: Partial<Config>) {
     }
     async function boundary(event: BoundaryState, context: ExtensionContext) {
       refresh(context);
-      if (
-        !config.enabled ||
-        !context.model ||
-        !supported(identity(context.model))
-      )
-        return;
+      if (!config.enabled || !supported(context.model)) return;
       // Other extensions' drafts are not durable yet; never snapshot them.
       if (event.entries.length || event.context.pendingMessages.length) return;
+      const scheduling = scheduler;
+      const transaction = tx;
       try {
         if (legacy(context)) return; // Never silently cross an existing continuity boundary.
         checkpoint(context);
@@ -362,9 +366,12 @@ export function createExtension(settings?: Partial<Config>) {
           event.context.llmMessages,
           context.signal,
         );
-        return { entries: [commitDraft(cp, () => tx.guard(key(context)))] };
+        return {
+          entries: [commitDraft(cp, () => transaction.guard(key(context)))],
+        };
       } catch (error) {
-        scheduler.failed(classify(error));
+        if (scheduling !== scheduler) return; // An old branch must not poison the new scheduler.
+        scheduling.failed(classify(error));
         announce(context, error);
       }
     }
@@ -372,12 +379,14 @@ export function createExtension(settings?: Partial<Config>) {
       refresh(context);
       disabled = undefined;
       tx.cancel();
-      scheduler.success();
+      tx = new Transaction(config, log);
+      scheduler = new Scheduler(config);
       lastSystem = undefined;
       lastOptions = {};
       policy = {};
       removed = [];
       inputTransformed = false;
+      if (!participates(context)) return;
       try {
         for (const name of [
           "@earendil-works/pi-ai",
@@ -437,10 +446,24 @@ export function createExtension(settings?: Partial<Config>) {
       }
     }
     pi.on("session_start", (_event, context) => initialize(context));
+    pi.on("model_select", (_event, context) => initialize(context));
+    pi.on("session_tree", (_event, context) => initialize(context));
     pi.on("turn_end", boundary);
     pi.on("agent_before_settle", boundary);
     pi.on("session_before_compact", async (event, context) => {
       refresh(context);
+      if (!supported(context.model) || !config.enabled) {
+        if (!ownsContext(context)) return; // Leave Pi/other compactors untouched.
+        context.ui.notify(
+          !supported(context.model)
+            ? INCOMPATIBLE_CONTEXT
+            : "Native compaction is paused; an opaque checkpoint cannot be replaced with a text summary.",
+          "warning",
+        );
+        return { cancel: true };
+      }
+      const transaction = tx;
+      const scheduling = scheduler;
       try {
         const old = legacy(context);
         const migration =
@@ -454,10 +477,11 @@ export function createExtension(settings?: Partial<Config>) {
           event.signal,
           migration,
         );
-        scheduler.success();
+        check(transaction === tx, "Compaction scope changed before commit");
+        if (scheduling === scheduler) scheduling.success();
         // Pi 1.0 runtime supports null/self-retaining; CompactionResult's type still says string.
         // Kept in this one compatibility adapter and covered by real SDK integration tests.
-        const draft = commitDraft(cp, () => tx.guard(key(context)));
+        const draft = commitDraft(cp, () => transaction.guard(key(context)));
         return {
           compaction: Object.defineProperty(
             {
@@ -470,20 +494,24 @@ export function createExtension(settings?: Partial<Config>) {
           ) as unknown as CompactionResult,
         };
       } catch (error) {
-        scheduler.failed(classify(error));
+        if (scheduling !== scheduler) return { cancel: true };
+        scheduling.failed(classify(error));
         announce(context, error);
         return { cancel: true };
       }
     });
     pi.on("session_compact", (_event, context) => {
       refresh(context);
+      if (!participates(context)) return;
       try {
         checkpoint(context);
       } catch (e) {
         announce(context, e);
       }
     });
-    pi.on("session_compact_failed", () => tx.discard());
+    pi.on("session_compact_failed", (event, context) => {
+      if (event.fromExtension && participates(context)) tx.discard();
+    });
     pi.on("agent_settled", (_event, context) => {
       if (!tx.proposal) return;
       const latest = context.sessionManager
@@ -508,28 +536,12 @@ export function createExtension(settings?: Partial<Config>) {
     pi.on("before_provider_request", (_event, context) => {
       refresh(context);
       // Never inject opaque state into a different provider. Abort before network as well.
-      if (
-        context.model &&
-        (context.model.provider !== "openai-codex" ||
-          context.model.api !== "openai-codex-responses") &&
-        context.sessionManager
-          .getBranch()
-          .some(
-            (e) =>
-              e.type === "compaction" &&
-              (e.summary === SENTINEL ||
-                (e.details &&
-                  typeof e.details === "object" &&
-                  ("strategy" in e.details || "compactedWindow" in e.details))),
-          )
-      ) {
+      if (ownsContext(context) && !supported(context.model)) {
+        context.ui.notify(INCOMPATIBLE_CONTEXT, "warning");
         context.abort();
         return {
           toJSON() {
-            throw new NativeError(
-              "identity",
-              "Codex native checkpoint cannot be sent to another provider",
-            );
+            throw new NativeError("identity", INCOMPATIBLE_CONTEXT);
           },
         };
       }
@@ -548,6 +560,16 @@ export function createExtension(settings?: Partial<Config>) {
         ) {
           context.ui.notify(
             "Usage: /native-compact status|inspect [--json], now, retry, migrate",
+            "warning",
+          );
+          return;
+        }
+        if (
+          ["migrate", "now", "retry"].includes(command) &&
+          (!supported(context.model) || !config.enabled)
+        ) {
+          context.ui.notify(
+            "Native compaction is inactive: use an enabled openai-codex / openai-codex-responses configuration. Ordinary Pi compaction is unaffected in sessions without a native checkpoint.",
             "warning",
           );
           return;
@@ -596,21 +618,40 @@ export function createExtension(settings?: Partial<Config>) {
         }
         let cp: Checkpoint | undefined;
         let old: ReturnType<typeof legacy>;
-        let health = "ok";
+        const owned = ownsContext(context);
+        const incompatible = owned && !supported(context.model);
+        const relevant = participates(context) || owned;
+        let health = incompatible
+          ? INCOMPATIBLE_CONTEXT
+          : relevant
+            ? "ok"
+            : "not applicable";
         try {
-          old = legacy(context);
-          cp = checkpoint(context, true);
+          if (relevant && !incompatible) {
+            old = legacy(context);
+            cp = checkpoint(context, true);
+          }
         } catch (e) {
           health = classify(e).message;
         }
         let modelIdentity: Status["model"] = null;
         try {
-          modelIdentity = context.model ? identity(context.model) : null;
+          modelIdentity = context.model
+            ? supported(context.model)
+              ? identity(context.model)
+              : {
+                  provider: context.model.provider,
+                  api: context.model.api,
+                  model: context.model.id,
+                  baseUrl: "(not inspected: inactive provider)",
+                }
+            : null;
         } catch {
           health = "model/endpoint unavailable";
         }
         const status: Status = {
           enabled: config.enabled,
+          scope: incompatible ? "blocked" : relevant ? "active" : "inactive",
           disabled,
           mode: config.mode,
           model: modelIdentity,
@@ -634,13 +675,17 @@ export function createExtension(settings?: Partial<Config>) {
                   requiresExplicitCommand: true,
                 }
               : undefined),
-          continuity: cp
-            ? STRATEGY
-            : old
-              ? old.kind
-              : health === "ok"
-                ? "uncompacted"
-                : "legacy-or-invalid",
+          continuity: !relevant
+            ? "Pi-managed"
+            : incompatible
+              ? STRATEGY
+              : cp
+                ? STRATEGY
+                : old
+                  ? old.kind
+                  : health === "ok"
+                    ? "uncompacted"
+                    : "legacy-or-invalid",
           lastFailure: tx.lastFailure?.kind,
           retryCount: Math.max(0, tx.attemptCount - 1),
           lastOutcome: tx.lastOutcome,

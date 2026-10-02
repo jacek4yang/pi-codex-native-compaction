@@ -35,6 +35,9 @@ Read the [intentional differences](docs/PROTOCOL.md) before deployment.
 
 Independent summarizers such as Luna do not inherit the main Astra checkpoint.
 See [request ownership and pruner compatibility](docs/PRUNER_OWNERSHIP.md).
+Other providers/APIs in sessions without an active native checkpoint keep Pi’s normal
+inference and compaction. Only incompatible continuation of an owned native context
+is blocked; see [provider/session isolation](docs/PROVIDER_ISOLATION.md).
 No companion plugin is bundled or required. The optional boundary/retry enhancements
 in those notes belong to a separately tested local pruner patch.
 
@@ -49,7 +52,7 @@ pi install git:github.com/jacek4yang/pi-codex-native-compaction
 For a reproducible release (recommended; the unpinned form tracks the default branch):
 
 ```sh
-pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.1
+pi install git:github.com/jacek4yang/pi-codex-native-compaction@v0.3.2
 ```
 
 Reload/restart Pi after installation. The root TypeScript entry works without a local

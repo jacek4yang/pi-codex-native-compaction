@@ -32,13 +32,19 @@ Pi reports that loading error.
 
 ## Hook map
 
+[Provider/session isolation](PROVIDER_ISOLATION.md) defines when these hooks participate.
+On unrelated providers without an active owned checkpoint, native hooks leave Pi’s
+inference and compactor untouched. Model selection and tree navigation reset the
+per-scope transaction, scheduler and captured policy; stale callbacks cannot mutate
+the new scope.
+
 | Hook                    | Role                                                            |
 | ----------------------- | --------------------------------------------------------------- |
-| session_start           | capability/identity checks and per-session reset                |
+| session_start           | scoped capability/identity checks and per-session reset         |
 | turn_end                | proactive proposal after safe turn/tool boundary                |
 | agent_before_settle     | final safe-boundary opportunity                                 |
 | agent_settled           | acknowledge committed proposal or discard cancelled draft       |
-| session_before_compact  | manual, Pi threshold and overflow native-only compaction        |
+| session_before_compact  | scoped manual, threshold and overflow native compaction         |
 | session_compact         | acknowledge Pi commit                                           |
 | session_compact_failed  | discard proposal                                                |
 | before_provider_request | refresh runtime context; block non-Codex use of native sessions |

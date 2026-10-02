@@ -80,6 +80,24 @@ test("untrusted diagnostic text cannot inject terminal controls or extra lines",
   assert(!text.includes("\x1b"));
   assert(!text.includes("\nFORGED"));
 });
+test("inactive and incompatible sessions have explicit scope, not a false enabled status", () => {
+  assert(
+    formatStatus({
+      ...status,
+      scope: "inactive",
+      continuity: "Pi-managed",
+    }).includes("inactive (Pi handles this session)"),
+  );
+  assert(
+    formatStatus({ ...status, scope: "blocked" }).includes(
+      "blocked (incompatible native context)",
+    ),
+  );
+  assert.equal(
+    JSON.parse(statusJson({ ...status, scope: "inactive" })).scope,
+    "inactive",
+  );
+});
 test("runtime version and root Pi entry match package metadata", () => {
   const pkg = JSON.parse(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),

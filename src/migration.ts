@@ -16,7 +16,7 @@ import {
 import { check, NativeError, object } from "./errors.js";
 
 export const MIGRATE_REQUEST = "pi-codex-native-compaction:explicit-migration";
-const OLD_V2 = "openai-native-compact-v2";
+export const LEGACY_STRATEGY = "openai-native-compact-v2";
 import type { Migration } from "./provenance.js";
 export interface LegacyBoundary {
   entry: CompactionEntry;
@@ -40,7 +40,7 @@ export function legacyBoundary(
       : {};
   if (entry.summary === SENTINEL || d.strategy === STRATEGY) return;
   check(typeof entry.summary === "string", "Invalid legacy summary");
-  if (d.strategy === OLD_V2) {
+  if (d.strategy === LEGACY_STRATEGY) {
     check(
       expected,
       "Current model identity required to migrate a native checkpoint",
