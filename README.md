@@ -16,8 +16,8 @@ the encrypted item, and the new live tail. **There is no text-summary fallback.*
 
 ## Compatibility and evidence
 
-- Tested: `@earendil-works/pi-coding-agent` **1.0.0**, `@earendil-works/pi-ai` **1.0.0**.
-  Runtime compatibility is deliberately restricted to **1.0.x**. Host dependencies are
+- Tested: `@earendil-works/pi-coding-agent` **1.0.1**, `@earendil-works/pi-ai` **1.0.1**.
+  Runtime compatibility is deliberately restricted to **1.0.1**. Host dependencies are
   external peers (`*`), following Pi package guidance; the runtime guard is not relaxed.
 - Provider/API: `openai-codex` / `openai-codex-responses`; primary model `gpt-6-astra`.
 - Existing Pi ChatGPT/Codex OAuth login; no API key, second login, or billing fallback.
@@ -43,7 +43,7 @@ in those notes belong to a separately tested local pruner patch.
 
 ## Install from GitHub
 
-Requires Node **24+**, Pi **1.0.x**, and your existing Codex login.
+Requires Node **24+**, Pi **1.0.1**, and your existing Codex login.
 
 ```sh
 pi install git:github.com/jacek4yang/pi-codex-native-compaction
@@ -182,7 +182,7 @@ just as ordinary sessions contain conversation history. Protect session files no
   Return to the exact identity/original session, or start a new one.
 - **Manual compaction before any request / immediately after resume:** run one ordinary
   turn first if Pi has not yet established a system/tool transcript.
-- **Unsupported Pi API shape:** use tested Pi 1.0.0. Do not edit checkpoints to bypass guards.
+- **Unsupported Pi API shape:** use tested Pi 1.0.1. Do not edit checkpoints to bypass guards.
 - **Input-rewriting extensions:** arbitrary provider-input rewrites cannot be safely
   reproduced by the compaction request and are rejected. Non-input payload policy
   changes are retained. Competing provider overrides are unsupported.
