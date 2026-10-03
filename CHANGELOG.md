@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3 — Pi 1.0.1 baseline
+
+- Require Pi 1.0.1; align public version guard, SDK peers and development lockfile.
+- Reverify all 135 regressions and isolated package loading without changing compaction policy.
+
 ## 0.3.2 — Provider and session isolation
 
 - Let unrelated providers/APIs use Pi's own inference and manual/automatic compaction.

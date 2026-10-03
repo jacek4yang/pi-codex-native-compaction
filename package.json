@@ -1,6 +1,6 @@
 {
   "name": "pi-codex-native-compaction",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Transactional Codex Remote Compaction V2 for Pi: native checkpoints, safe replay, and explicit legacy migration.",
   "type": "module",
   "license": "MIT",
@@ -45,12 +45,12 @@
     "format:check": "prettier --check index.ts src test scripts docs assets .github README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md *.json eslint.config.js"
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-ai": "1.0.1",
+    "@earendil-works/pi-coding-agent": "1.0.1"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "1.0.0",
-    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@earendil-works/pi-ai": "1.0.1",
+    "@earendil-works/pi-coding-agent": "1.0.1",
     "@types/node": "^24.0.0",
     "eslint": "^9.0.0",
     "prettier": "^3.9.9",

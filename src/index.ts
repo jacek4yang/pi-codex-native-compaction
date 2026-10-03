@@ -411,7 +411,7 @@ export function createExtension(settings?: Partial<Config>) {
             dir = parent;
           }
           check(version, "Cannot establish Pi version");
-          check(/^1\.0\./.test(version), "Unsupported Pi version " + version);
+          check(version === "1.0.1", "Unsupported Pi version " + version);
         }
         check(
           typeof context.modelRegistry.streamSimple === "function" &&
