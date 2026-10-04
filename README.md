@@ -25,7 +25,7 @@ Local hard-limit guards use Pi’s overflow recovery path: commit once, resume o
 ## Compatibility and evidence
 
 - Tested: `@earendil-works/pi-coding-agent` **1.0.2**, `@earendil-works/pi-ai` **1.0.2**.
-  Runtime and peer dependencies accept **stable `~1.0.2`** patches (>=1.0.2, <1.1.0); CI pins the tested floor. Older versions, prereleases and new minor versions fail closed. API, identity, cancellation and commit guards remain mandatory.
+  Pi peer versions are unrestricted (`*`); runtime checks actual required APIs, not version labels. CI/dev dependencies pin 1.0.2 only for reproducible testing, not to block user upgrades. Untested versions are not guaranteed compatible. Identity, cancellation and commit guards remain mandatory.
 - Provider/API: `openai-codex` / `openai-codex-responses`; primary model `gpt-6-astra`.
 - Existing Pi ChatGPT/Codex OAuth login; no API key, second login, or billing fallback.
 - Codex reference: `b8dceb0d4f29e49e73daa08f57fcf5181186f354` (`compact_remote_v2.rs`, `responses_retry.rs`): bounded compaction retries and phase/reconnection feedback, not an unbounded sampling retry loop.
@@ -50,7 +50,7 @@ in those notes belong to a separately tested local pruner patch.
 
 ## Install from GitHub
 
-Requires Node **24+**, Pi **1.0.2**, and your existing Codex login.
+Requires Node **24+**, the required public Pi APIs (tested on **1.0.2**), and your existing Codex login.
 
 ```sh
 pi install git:github.com/jacek4yang/pi-codex-native-compaction
