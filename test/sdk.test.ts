@@ -37,6 +37,7 @@ for (const scenario of [
   "automatic",
   "late-head",
   "overflow",
+  "guard-recovery",
   "soft-fail",
   "hard-fail",
   "automatic-tools",
@@ -52,12 +53,14 @@ for (const scenario of [
   "migrate-auto",
 ] as const)
   test("real Pi 1.0 SDK: " + scenario, async () => {
+    const guardRecovery = scenario === "guard-recovery";
+    const toolScenario = scenario === "automatic-tools" || guardRecovery;
     const automatic = scenario.startsWith("automatic");
     const packaged =
       scenario === "packaged" || Boolean(process.env.PI_NATIVE_TEST_EXTENSION);
     let mutateLate = false;
     let overflowOnce = scenario === "overflow";
-    let toolsOnce = scenario === "automatic-tools";
+    let toolsOnce = toolScenario;
     let toolExecutions = 0;
     let migratedAuto = false;
     let migrationCommitted: (() => void) | undefined;
@@ -181,7 +184,8 @@ for (const scenario of [
         );
       for (const event of events(output)) {
         if (
-          (scenario.endsWith("-fail") ||
+          ((guardRecovery && useTools) ||
+            scenario.endsWith("-fail") ||
             (scenario === "migrate-auto" && migratedAuto && !compact)) &&
           (event as { type: string }).type === "response.completed"
         ) {
@@ -231,7 +235,7 @@ for (const scenario of [
       });
       const settings = SettingsManager.inMemory({
         compaction: {
-          enabled: scenario === "overflow",
+          enabled: scenario === "overflow" || guardRecovery,
           keepRecentTokens: 0,
           reserveTokens: 1000,
         },
@@ -259,6 +263,26 @@ for (const scenario of [
               : []),
           ],
           extensionFactories: [
+            // Another extension's pending entries prevent early native boundary work.
+            // The next provider request must compact AND resume, without replaying tools.
+            (pi) => {
+              pi.on("turn_end", (e) => {
+                if (
+                  guardRecovery &&
+                  e.message.role === "assistant" &&
+                  e.message.stopReason === "toolUse"
+                )
+                  return {
+                    entries: [
+                      {
+                        type: "custom" as const,
+                        customType: "fixture",
+                        data: {},
+                      },
+                    ],
+                  };
+              });
+            },
             ...(packaged
               ? []
               : [
@@ -297,7 +321,7 @@ for (const scenario of [
                 recovery.push({ reason: e.reason, willRetry: e.willRetry });
                 if (mutateLate) pi.appendEntry("late-writer", { test: true });
               });
-              if (scenario === "automatic-tools") {
+              if (toolScenario) {
                 const execute = async () => {
                   toolExecutions++;
                   return {
@@ -337,15 +361,14 @@ for (const scenario of [
           settingsManager: settings,
           sessionManager: manager,
           resourceLoader: loader,
-          tools: scenario === "automatic-tools" ? ["normal", "grammar"] : [],
+          tools: toolScenario ? ["normal", "grammar"] : [],
         });
         await session.bindExtensions({
           onError: (e) => {
             throw new Error(JSON.stringify(e));
           },
         });
-        if (scenario === "automatic-tools")
-          session.setActiveToolsByName(["normal", "grammar"]);
+        if (toolScenario) session.setActiveToolsByName(["normal", "grammar"]);
         return session;
       };
       let session = await make(SessionManager.create(dir, dir));
@@ -645,7 +668,7 @@ for (const scenario of [
         session.dispose();
         return;
       }
-      if (scenario === "automatic-tools") {
+      if (toolScenario) {
         assert.equal(
           toolExecutions,
           2,
@@ -663,6 +686,27 @@ for (const scenario of [
             ),
           ),
         );
+      }
+      if (guardRecovery) {
+        assert(recovery.some((r) => r.reason === "overflow" && r.willRetry));
+        assert.equal(
+          toolExecutions,
+          2,
+          "completed tools must not execute twice",
+        );
+        assert.equal(
+          payloads.length,
+          3,
+          "tools, native compact, exactly one resumed response",
+        );
+        assert.equal(
+          session.sessionManager
+            .getBranch()
+            .filter((e) => e.type === "compaction").length,
+          1,
+        );
+        session.dispose();
+        return;
       }
       // A tool turn can compact before its final assistant turn, producing two safe generations.
       const initial = session.sessionManager

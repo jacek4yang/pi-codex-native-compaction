@@ -81,6 +81,8 @@ for (const failure of [
   "TLS transport interruption",
   "timeout",
   "socket closed",
+  "terminated",
+  "UND_ERR_BODY_TIMEOUT",
 ])
   test(failure + " preserves old context", async () => {
     const tx = fresh();
@@ -127,6 +129,52 @@ for (const [name, data] of [
     );
     assert.equal(tx.proposal, undefined);
   });
+test("stalled response body has an end-to-end deadline and bounded retries", async () => {
+  const c = configure({
+    requestTimeoutMs: 30,
+    maxRetries: 1,
+    retryBaseDelayMs: 0,
+  });
+  const tx = new Transaction(c, new Diagnostics(c));
+  let calls = 0;
+  const controllers: ReadableStreamDefaultController<Uint8Array>[] = [];
+  try {
+    await assert.rejects(
+      tx.run(
+        snapshot(),
+        sender(async () => {
+          calls++;
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controllers.push(controller);
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    'data: {"type":"response.created","response":{"id":"resp_stalled","status":"in_progress"}}\n\n',
+                  ),
+                );
+              },
+            }),
+            { headers: { "content-type": "text/event-stream" } },
+          );
+        }),
+        () => "key",
+      ),
+      /deadline exceeded/,
+    );
+    assert.equal(calls, 2);
+    assert.equal(tx.lastFailure?.kind, "transient");
+    assert.equal(tx.proposal, undefined);
+  } finally {
+    for (const c of controllers) {
+      try {
+        c.close();
+      } catch {
+        /* stream already aborted */
+      }
+    }
+  }
+});
 test("duplicate completion collector rejects", () => {
   const c = new Collector();
   for (const e of [...events(), events().at(-1)]) c.observe(e);

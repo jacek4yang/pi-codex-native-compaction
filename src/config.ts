@@ -5,6 +5,7 @@ export const defaults = {
   softThresholdRatio: 0.75,
   hardThresholdRatio: 0.88,
   maxRetries: 2,
+  requestTimeoutMs: 300000,
   retryBaseDelayMs: 250,
   retryMaxDelayMs: 10000,
   retryJitterRatio: 0.2,
@@ -33,6 +34,7 @@ export function configure(input: unknown = {}): Config {
     "softThresholdRatio",
     "hardThresholdRatio",
     "maxRetries",
+    "requestTimeoutMs",
     "retryBaseDelayMs",
     "retryMaxDelayMs",
     "retryJitterRatio",
@@ -62,6 +64,10 @@ export function configure(input: unknown = {}): Config {
       c.circuitBreakerFailureCount >= 1 &&
       c.circuitBreakerCooldownMs > 0,
     "Invalid circuit settings",
+  );
+  check(
+    c.requestTimeoutMs > 0 && c.requestTimeoutMs <= 900000,
+    "requestTimeoutMs must be 1..900000",
   );
   return c;
 }

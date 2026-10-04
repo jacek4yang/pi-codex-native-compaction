@@ -24,14 +24,14 @@ export function classify(
 ): NativeError {
   if (error instanceof NativeError) return error;
   const message = error instanceof Error ? error.message : String(error);
-  if (/abort|cancel/i.test(message))
+  if (/cancel|user.*abort|operation was aborted/i.test(message))
     return new NativeError("cancelled", "Native compaction cancelled");
   if (status && [408, 429, 500, 502, 503, 504].includes(status))
     return new NativeError("transient", message, status, retryAfterMs);
   if (status && status >= 400)
     return new NativeError("protocol", message, status);
   return new NativeError(
-    /ECONN|ENOTFOUND|EAI_AGAIN|socket|fetch failed|network|timeout|timed out|TLS|EOF|stream.*(end|clos)|temporar/i.test(
+    /ECONN|ENOTFOUND|EAI_AGAIN|UND_ERR_|terminated|socket|fetch failed|network|timeout|timed out|TLS|EOF|stream.*(end|clos)|temporar/i.test(
       message,
     )
       ? "transient"

@@ -14,14 +14,21 @@ response, and stores the opaque encrypted checkpoint in Pi's session JSONL.
 Subsequent requests replace Pi's structural summary with retained native messages,
 the encrypted item, and the new live tail. **There is no text-summary fallback.**
 
+## Recovery visibility
+
+During native requests a compact widget shows phase, elapsed time, attempt, retry countdown, input size, received events and quiet time (not a progress percentage). `requestTimeoutMs` bounds the whole attempt including body drain: default 300000, range 1–900000. With default two retries there are at most three attempts; cancellation and permanent failures do not retry.
+
+`/native-compact inspect` includes the last safe attempt snapshot, persisted under Pi agent directory `native-compaction/<session-hash>.json`. One small atomic file per session stores whitelisted numbers, phase and error class only—no prompts, credentials, provider error bodies or opaque state. Diagnostic/UI failures cannot change commit correctness.
+
+Local hard-limit guards use Pi’s overflow recovery path: commit once, resume once. Failed/aborted turns are not checkpointed early. Normal successful completion is not forced to continue.
+
 ## Compatibility and evidence
 
-- Tested: `@earendil-works/pi-coding-agent` **1.0.1**, `@earendil-works/pi-ai` **1.0.1**.
-  Runtime compatibility is deliberately restricted to **1.0.1**. Host dependencies are
-  external peers (`*`), following Pi package guidance; the runtime guard is not relaxed.
+- Tested: `@earendil-works/pi-coding-agent` **1.0.2**, `@earendil-works/pi-ai` **1.0.2**.
+  Runtime and peer dependencies accept **stable `~1.0.2`** patches (>=1.0.2, <1.1.0); CI pins the tested floor. Older versions, prereleases and new minor versions fail closed. API, identity, cancellation and commit guards remain mandatory.
 - Provider/API: `openai-codex` / `openai-codex-responses`; primary model `gpt-6-astra`.
 - Existing Pi ChatGPT/Codex OAuth login; no API key, second login, or billing fallback.
-- Codex reference: `ca466061d64f0b44f416135c7fd06aa7af850bbc`.
+- Codex reference: `b8dceb0d4f29e49e73daa08f57fcf5181186f354` (`compact_remote_v2.rs`, `responses_retry.rs`): bounded compaction retries and phase/reconnection feedback, not an unbounded sampling retry loop.
 - Pi upstream inspected: `b271b0a524b29e13c0c9e748aea0d34e1597f2db`.
 - Offline: actual Pi SDK, local SSE backend, serializer parity and fault injection.
 - Live: **six consecutive V2 generations**, real normal/custom grammar tools,
@@ -43,7 +50,7 @@ in those notes belong to a separately tested local pruner patch.
 
 ## Install from GitHub
 
-Requires Node **24+**, Pi **1.0.1**, and your existing Codex login.
+Requires Node **24+**, Pi **1.0.2**, and your existing Codex login.
 
 ```sh
 pi install git:github.com/jacek4yang/pi-codex-native-compaction
@@ -182,7 +189,7 @@ just as ordinary sessions contain conversation history. Protect session files no
   Return to the exact identity/original session, or start a new one.
 - **Manual compaction before any request / immediately after resume:** run one ordinary
   turn first if Pi has not yet established a system/tool transcript.
-- **Unsupported Pi API shape:** use tested Pi 1.0.1. Do not edit checkpoints to bypass guards.
+- **Unsupported Pi API shape:** use tested Pi 1.0.2. Do not edit checkpoints to bypass guards.
 - **Input-rewriting extensions:** arbitrary provider-input rewrites cannot be safely
   reproduced by the compaction request and are rejected. Non-input payload policy
   changes are retained. Competing provider overrides are unsupported.
