@@ -1,6 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { codexStream, resolvePiEntry } from "./pi-ai.js";
+import { join } from "node:path";
+import { codexStream } from "./pi-ai.js";
 import type {
   Api,
   Model,
@@ -415,34 +414,6 @@ export function createExtension(settings?: Partial<Config>) {
       inputTransformed = false;
       if (!participates(context)) return;
       try {
-        for (const name of [
-          "@earendil-works/pi-ai",
-          "@earendil-works/pi-coding-agent",
-        ]) {
-          let dir = dirname(resolvePiEntry(name));
-          let version: string | undefined;
-          for (;;) {
-            try {
-              const pkg = JSON.parse(
-                readFileSync(join(dir, "package.json"), "utf8"),
-              ) as { name?: string; version?: string };
-              if (pkg.name === name) {
-                version = pkg.version;
-                break;
-              }
-            } catch {
-              /* Walk from the public entry, no assumed node_modules layout. */
-            }
-            const parent = dirname(dir);
-            if (parent === dir) break;
-            dir = parent;
-          }
-          check(version, "Cannot establish Pi version");
-          check(
-            /^1\.0\.(?:[2-9]|[1-9]\d+)$/.test(version),
-            "Unsupported Pi version " + version + "; requires stable ~1.0.2",
-          );
-        }
         check(
           typeof context.modelRegistry.streamSimple === "function" &&
             typeof context.sessionManager.buildSessionProjection === "function",
