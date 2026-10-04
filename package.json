@@ -51,11 +51,11 @@
   "devDependencies": {
     "@earendil-works/pi-ai": "1.0.2",
     "@earendil-works/pi-coding-agent": "1.0.2",
-    "@types/node": "^24.0.0",
-    "eslint": "^9.0.0",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
     "prettier": "^3.9.9",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.0.0"
   },
   "author": {
