@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.4
+
+- Pi 1.0.2 tested floor; accept stable ~1.0.2 patches, preserving API/state guards.
+- Route local hard-limit failures through Pi compact-and-retry; do not checkpoint failed turns before Pi classifies them.
+- Retry terminated/UND_ERR transport failures; bound the whole native attempt (including response body) to configurable requestTimeoutMs (default 300000, max 900000). Existing maxRetries/circuit limits remain.
+- Two-line phase/elapsed/attempt/retry/quiet/input/event widget and bounded whitelist-only last-attempt sidecar. /native-compact inspect exposes safe metadata across restart.
+
 ## 0.3.3 — Pi 1.0.1 baseline
 
 - Require Pi 1.0.1; align public version guard, SDK peers and development lockfile.

@@ -25,10 +25,21 @@ export function redact(value: unknown, key = "", depth = 0): unknown {
 export class Diagnostics {
   latest: unknown;
   failures = 0;
-  constructor(private readonly c: Config) {}
+  constructor(
+    private readonly c: Config,
+    private readonly observe?: (
+      event: string,
+      fields: Record<string, unknown>,
+    ) => void,
+  ) {}
   emit(event: string, fields: Record<string, unknown> = {}) {
     const record = redact({ at: new Date().toISOString(), event, ...fields });
     this.latest = record;
+    try {
+      this.observe?.(event, fields);
+    } catch {
+      this.failures++;
+    }
     if (
       !this.c.artifactRoot ||
       !(this.c.debug || this.c.mode === "strict-debug")

@@ -20,6 +20,7 @@ import { retryAfter, backoff, sleep } from "./retry.js";
 import type { Config } from "./config.js";
 import type { StateMachine } from "./state-machine.js";
 import type { Diagnostics } from "./diagnostics.js";
+import { deadline } from "./deadline.js";
 export class Collector {
   items: Item[] = [];
   completed = 0;
@@ -104,6 +105,7 @@ export async function requestNative(
     let requested: number | undefined;
     let request: Item | undefined;
     let input: Item[] = [];
+    const budget = deadline(c.requestTimeoutMs, signal);
     try {
       log.emit("attempt", {
         attempt,
@@ -112,10 +114,11 @@ export async function requestNative(
         generation: s.generation,
       });
       const stream = send(s.messages, {
-        signal,
+        signal: budget.signal,
         maxRetries: 0,
-        timeoutMs: 120000,
+        timeoutMs: c.requestTimeoutMs,
         onPayload(payload) {
+          budget.signal.throwIfAborted();
           const parsed = inputOf(payload);
           check(
             !parsed.input.some((i) => i.type === "compaction_trigger"),
@@ -129,6 +132,7 @@ export async function requestNative(
           log.emit("request", {
             attempt,
             inputItems: input.length,
+            inputBytes: Buffer.byteLength(JSON.stringify(request)),
             fingerprint: hash(request),
             types: input.map((i) => i.type ?? i.role),
           });
@@ -139,15 +143,22 @@ export async function requestNative(
           requested = retryAfter(response.headers["retry-after"]);
         },
         onProviderStreamEvent(event) {
+          budget.signal.throwIfAborted();
           collector.observe(event);
           const e = object(event);
           log.emit("provider_event", { type: e.type });
         },
       });
-      for await (const event of stream) {
-        void event; /* drain Pi-owned stream, observing raw events above */
-      }
-      const result = await stream.result();
+      const result = await budget.wait(
+        (async () => {
+          for await (const event of stream) {
+            void event;
+          }
+          return stream.result();
+        })(),
+      );
+      budget.signal.throwIfAborted();
+      budget.dispose();
       if (result.stopReason === "error" || result.stopReason === "aborted")
         throw classify(
           new Error(result.errorMessage ?? "Provider failed"),
@@ -182,7 +193,12 @@ export async function requestNative(
         ...(s.migration ? { migration: s.migration } : {}),
       });
     } catch (error) {
-      const e = classify(error, status, requested);
+      const e = classify(
+        budget.signal.aborted ? budget.signal.reason : error,
+        status,
+        requested,
+      );
+      budget.dispose();
       log.emit("attempt_failed", {
         attempt,
         kind: e.kind,
@@ -202,6 +218,8 @@ export async function requestNative(
       log.emit("retry", { attempt, wait });
       await sleep(wait, signal);
       attempt++;
+    } finally {
+      budget.dispose();
     }
   }
 }

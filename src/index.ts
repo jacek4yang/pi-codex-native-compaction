@@ -9,6 +9,7 @@ import type {
 } from "@earendil-works/pi-ai";
 import {
   convertToLlm,
+  getAgentDir,
   type ExtensionAPI,
   type ExtensionContext,
   type CompactionResult,
@@ -33,6 +34,7 @@ import {
 import { marker, replay, inputOf } from "./replay.js";
 import { Scheduler } from "./scheduler.js";
 import { Diagnostics } from "./diagnostics.js";
+import { Progress } from "./progress.js";
 import { Transaction } from "./transaction.js";
 import { commitDraft } from "./pi-runtime.js";
 import { formatStatus, statusJson, type Status } from "./status.js";
@@ -49,7 +51,10 @@ export function createExtension(settings?: Partial<Config>) {
     const config = configure(
       settings ?? JSON.parse(process.env.PI_CODEX_NATIVE_COMPACTION ?? "{}"),
     );
-    const log = new Diagnostics(config);
+    let progress = new Progress();
+    let log = new Diagnostics(config, (event, fields) =>
+      progress.observe(event, fields),
+    );
     let tx = new Transaction(config, log);
     let scheduler = new Scheduler(config);
     let ctx: ExtensionContext | undefined;
@@ -227,7 +232,9 @@ export function createExtension(settings?: Partial<Config>) {
               if (ratio >= config.hardThresholdRatio && !tx.proposal)
                 throw new NativeError(
                   "circuit",
-                  "Native compaction required before another provider request",
+                  // Public Pi overflow classification routes this local safety guard through
+                  // one compact-and-retry, rather than threshold compaction without resume.
+                  "context_length_exceeded: Native compaction required before another provider request (local safety threshold)",
                 );
             }
             // For normal requests, our final validation runs AFTER Pi extension payload hooks.
@@ -308,30 +315,38 @@ export function createExtension(settings?: Partial<Config>) {
         key: initialKey,
         migration: migration?.provenance ?? cp?.migration,
       };
-      return tx.run(
-        snapshot,
-        (items, options) => {
-          check(options.onPayload, "Native payload hook missing");
-          nativeCallbacks.add(options.onPayload);
-          if (migration) nativeMigrations.set(options.onPayload, migration);
-          return context.modelRegistry.streamSimple(
-            snapshot.model,
-            { messages: items },
-            {
-              ...lastOptions,
-              transport: lastOptions.transport ?? pi.getSettings().transport,
-              ...options,
-              reasoning:
-                context.thinkingLevel === "off"
-                  ? undefined
-                  : context.thinkingLevel,
-              sessionId: snapshot.sessionId,
-            },
-          );
-        },
-        () => key(context),
-        signal,
+      progress.start(
+        context.ui,
+        config.maxRetries + 1,
+        config.requestTimeoutMs,
       );
+      const view = progress;
+      return tx
+        .run(
+          snapshot,
+          (items, options) => {
+            check(options.onPayload, "Native payload hook missing");
+            nativeCallbacks.add(options.onPayload);
+            if (migration) nativeMigrations.set(options.onPayload, migration);
+            return context.modelRegistry.streamSimple(
+              snapshot.model,
+              { messages: items },
+              {
+                ...lastOptions,
+                transport: lastOptions.transport ?? pi.getSettings().transport,
+                ...options,
+                reasoning:
+                  context.thinkingLevel === "off"
+                    ? undefined
+                    : context.thinkingLevel,
+                sessionId: snapshot.sessionId,
+              },
+            );
+          },
+          () => key(context),
+          signal,
+        )
+        .finally(() => view.stop());
     }
     function projected(
       context: ExtensionContext,
@@ -379,6 +394,18 @@ export function createExtension(settings?: Partial<Config>) {
       refresh(context);
       disabled = undefined;
       tx.cancel();
+      progress.stop();
+      const view = new Progress(
+        join(
+          getAgentDir(),
+          "native-compaction",
+          hash(context.sessionManager.getSessionId()) + ".json",
+        ),
+      );
+      progress = view;
+      log = new Diagnostics(config, (event, fields) =>
+        view.observe(event, fields),
+      );
       tx = new Transaction(config, log);
       scheduler = new Scheduler(config);
       lastSystem = undefined;
@@ -411,7 +438,10 @@ export function createExtension(settings?: Partial<Config>) {
             dir = parent;
           }
           check(version, "Cannot establish Pi version");
-          check(version === "1.0.1", "Unsupported Pi version " + version);
+          check(
+            /^1\.0\.(?:[2-9]|[1-9]\d+)$/.test(version),
+            "Unsupported Pi version " + version + "; requires stable ~1.0.2",
+          );
         }
         check(
           typeof context.modelRegistry.streamSimple === "function" &&
@@ -448,7 +478,16 @@ export function createExtension(settings?: Partial<Config>) {
     pi.on("session_start", (_event, context) => initialize(context));
     pi.on("model_select", (_event, context) => initialize(context));
     pi.on("session_tree", (_event, context) => initialize(context));
-    pi.on("turn_end", boundary);
+    pi.on("turn_end", (event, context) => {
+      // Pi must classify/omit a failed generation before compacting it. Committing
+      // here makes its error pre-checkpoint, suppressing Pi's compact-and-retry.
+      if (
+        event.message.role === "assistant" &&
+        ["error", "aborted"].includes(event.message.stopReason)
+      )
+        return;
+      return boundary(event, context);
+    });
     pi.on("agent_before_settle", boundary);
     pi.on("session_before_compact", async (event, context) => {
       refresh(context);
@@ -531,6 +570,7 @@ export function createExtension(settings?: Partial<Config>) {
     });
     pi.on("session_shutdown", () => {
       tx.cancel();
+      progress.stop();
       ctx = undefined;
     });
     pi.on("before_provider_request", (_event, context) => {
@@ -700,6 +740,14 @@ export function createExtension(settings?: Partial<Config>) {
           replay: health,
           diagnosticWriteFailures: log.failures,
         };
+        if (command === "inspect")
+          context.ui.notify(
+            JSON.stringify({
+              lastAttempt: progress.previous(),
+              diagnosticFailures: progress.failures,
+            }),
+            "info",
+          );
         context.ui.notify(
           flags.includes("--json")
             ? statusJson(status)
